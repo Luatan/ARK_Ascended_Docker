@@ -11,25 +11,25 @@ services:
         TINI_VERSION: ${TINI_VERSION}
     env_file:
       - .env
+    environment:
+      SERVER_MAP: TheIsland_WP
+      SERVER_PORT: 7790
+      SESSION_NAME: My Awesome Server
     volumes:
       - ./ark_data:/opt/arkserver
       - ./ark_backup:/var/backups/asa-server
-      - steam_data:/opt/steamcmd
+      - steam_data_asa_server:/opt/steamcmd
+      - shared_cluster:/opt/shared-cluster #Enable for Cluster config
     ports:
-      # Port for connections from ARK game client
-      - "${SERVER_PORT}:${SERVER_PORT}/udp"
-      #uncomment if you want to expose the RCON Port
+      - "7790:7790/udp"
+      #- "${SERVER_PORT}:${SERVER_PORT}/udp"
       #- "${RCON_PORT}:${RCON_PORT}/tcp"
-    networks:
-      - default
-    # Increase default grace period to ensure clean shutdown
     stop_grace_period: 45s
-    deploy:
-      resources:
-        limits:
-          memory: 16g
-    # Comment to enable swap
-    memswap_limit: 16g
-
+  config:
+    image: python:3.9
+    entrypoint: python3 -m http.server --directory /web 80
+    volumes:
+      - ./web:/web
 volumes:
-    steam_data:
+    steam_data_asa_server:
+    shared_cluster:

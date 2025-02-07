@@ -289,6 +289,55 @@ custom_rcon() {
     echo "$out"
 }
 
+# Returns 0 if Update Required
+# Returns 1 if Update NOT Required
+# Returns 2 if Check Failed
+update_required() {
+  echo "Checking for new Server updates"
+  #define local variables
+  local CURRENT_MANIFEST LATEST_MANIFEST GAMEID temp_file http_code updateAvailable
+  #check steam for latest version
+  temp_file=$(mktemp)
+  http_code=$(curl "https://api.steamcmd.net/v1/info/$ASA_APPID" --output "$temp_file" --silent --location --write-out "%{http_code}")
+  if [ "$http_code" -ne 200 ]; then
+      echo "There was a problem reaching the Steam api. Unable to check for updates!"
+      #DiscordMessage "Install" "There was a problem reaching the Steam api. Unable to check for updates!" "failure"
+      rm "$temp_file"
+      return 2
+  fi
+
+  # Parse temp file for manifest id
+  LATEST_MANIFEST=$(grep -Po '"2430930".*"gid": "\d+"' <"$temp_file" | sed -r 's/.*("[0-9]+")$/\1/' | tr -d '"')
+  rm "$temp_file"
+
+  if [ -z "$LATEST_MANIFEST" ]; then
+      echo "The server response does not contain the expected BuildID. Unable to check for updates!"
+      #DiscordMessage "Install" "Steam servers response does not contain the expected BuildID. Unable to check for updates!" "failure"
+      return 2
+  fi
+
+  # Parse current manifest from steam files
+  CURRENT_MANIFEST=$(awk '/manifest/{count++} count==2 {print $2; exit}' /steamapps/appmanifest_$ASA_APPID.acf | tr -d '"')
+  echo "Current Version: $CURRENT_MANIFEST"
+
+  # Log any updates available
+  local updateAvailable=false
+  if [ "$CURRENT_MANIFEST" != "$LATEST_MANIFEST" ]; then
+    echo "An Update Is Available. Latest Version: $LATEST_MANIFEST."
+    updateAvailable=true
+  fi
+
+  if [ -n "${TARGET_MANIFEST_ID}" ] && [ "$CURRENT_MANIFEST" != "${TARGET_MANIFEST_ID}" ]; then
+    echo "Game not at target version. Target Version: ${TARGET_MANIFEST_ID}"
+    return 0
+  fi
+
+  if [ "$updateAvailable" == false ]; then
+    echo "The server is up to date!"
+    return 1
+  fi
+}
+
 update() {
     echo "Updating ARK Ascended Server"
     
@@ -362,6 +411,9 @@ main() {
             ;;
         "rcon")
             custom_rcon "${@:2:99}"
+            ;;
+        "check-update")
+            update_required
             ;;
         "update") 
             update
