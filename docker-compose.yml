@@ -31,7 +31,6 @@ services:
     entrypoint: python3 -m http.server --directory /web 80
     volumes:
       - ./web:/web
-      - steam_data_asa_server:/opt/steam
 volumes:
     steam_data_asa_server:
     shared_cluster:
