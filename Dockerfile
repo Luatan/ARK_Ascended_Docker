@@ -34,7 +34,7 @@ RUN         mkdir /opt/arkserver
 RUN         set -ex; \
             dpkg --add-architecture i386; \
             apt update; \
-            apt install -y --no-install-recommends wget curl jq sudo iproute2 procps software-properties-common dbus lib32gcc-s1
+            apt install -y --no-install-recommends wget curl jq jo sudo iproute2 procps software-properties-common dbus lib32gcc-s1
 
 # Download steamcmd
 RUN         set -ex; \
@@ -67,6 +67,17 @@ ARG         TINI_VERSION
 ADD         https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN         chmod +x /tini
 
+# Latest releases available at https://github.com/aptible/supercronic/releases
+ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-amd64 \
+    SUPERCRONIC_SHA1SUM=71b0d58cc53f6bd72cf2f293e09e294b79c666d8 \
+    SUPERCRONIC=supercronic-linux-amd64
+
+RUN curl -fsSLO "$SUPERCRONIC_URL" \
+ && echo "${SUPERCRONIC_SHA1SUM}  ${SUPERCRONIC}" | sha1sum -c - \
+ && chmod +x "$SUPERCRONIC" \
+ && mv "$SUPERCRONIC" "/usr/local/bin/${SUPERCRONIC}" \
+ && ln -s "/usr/local/bin/${SUPERCRONIC}" /usr/local/bin/supercronic
+
 # Set permissions
 RUN         set -ex; \
             chown -R arkuser:arkuser /opt/arkserver; \
@@ -76,6 +87,13 @@ COPY --chown=arkuser --chmod=755 ./scripts/start.sh /opt/start.sh
 COPY --chown=arkuser --chmod=755 ./scripts/manager /opt/manager
 
 RUN         ln -s /opt/manager/manager.sh /usr/local/bin/manager
+
+ENV AUTO_BACKUP_ENABLED=false \
+    AUTO_BACKUP_CRON_EXPRESSION="0 0 * * *" \
+    AUTO_UPDATE_ENABLED=true \
+    AUTO_UPDATE_CRON_EXPRESSION="0 * * * *" \
+    DISCORD_CONNECT_TIMEOUT=30 \
+    DISCORD_MAX_TIMEOUT=30
 
 USER        arkuser
 WORKDIR     /opt/arkserver/

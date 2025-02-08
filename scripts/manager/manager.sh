@@ -1,6 +1,7 @@
 #!/bin/bash
 RCON_CMDLINE=( rcon -a 127.0.0.1:${RCON_PORT} -p ${ARK_ADMIN_PASSWORD} )
 EOS_FILE=/opt/manager/.eos.config
+source "/opt/manager/helper.sh"
 
 get_and_check_pid() {
     # Get PID
@@ -192,16 +193,15 @@ start() {
         return
     fi    
 
-    echo "Starting server on port ${SERVER_PORT}"
+    LogInfo "Starting server on port ${SERVER_PORT}"
     echo "-------- STARTING SERVER --------" >> $LOG_FILE
 
     # Start server in the background + nohup and save PID
+    DiscordMessage "Start" "The Server is starting" "success"
     nohup /opt/manager/manager_server_start.sh >/dev/null 2>&1 &
     ark_pid=$!
-    echo "$ark_pid" > $PID_FILE
+    echo "$ark_pid" > "$PID_FILE"
     sleep 3
-
-    echo "Server should be up in a few minutes"
 }
 
 stop() {
@@ -210,14 +210,13 @@ stop() {
     if [[ "$ark_pid" == 0 ]]; then
         echo "Server PID not found (server offline?)"
         return
-    fi    
+    fi
 
     if [[ $1 == "--saveworld" ]]; then
         saveworld
     fi
-
-    echo "Stopping server gracefully..."
-    echo "-------- STOPPING SERVER --------" >> $LOG_FILE
+    DiscordMessage "Stopping" "Server will gracefully shutdown" "in-progress"
+    echo "-------- STOPPING SERVER --------" >> "$LOG_FILE"
 
     # Check number of players
     out=$(${RCON_CMDLINE[@]} DoExit 2>/dev/null)
@@ -238,6 +237,7 @@ stop() {
     fi
 
     if [[ "$force" == true ]]; then
+        DiscordMessage "Stopping" "Forcing the Server to shutdown" "faillure"
         echo "Forcing server shutdown"
         kill -INT $ark_pid
 
@@ -250,11 +250,12 @@ stop() {
     fi
 
     echo "" > $PID_FILE
-    echo "Done"
-    echo "-------- SERVER STOPPED --------" >> $LOG_FILE
+    DiscordMessage "Stopping" "Server has been stopped" "faillure"
+    echo "-------- SERVER STOPPED --------" >> "$LOG_FILE"
 }
 
 restart() {
+    DiscordMessage "Restart" "Restarting the Server" "in-progress"
     stop "$1"
     start
 }
@@ -295,29 +296,29 @@ custom_rcon() {
 update_required() {
   echo "Checking for new Server updates"
   #define local variables
-  local CURRENT_MANIFEST LATEST_MANIFEST GAMEID temp_file http_code updateAvailable
+  local CURRENT_MANIFEST LATEST_MANIFEST temp_file http_code updateAvailable
   #check steam for latest version
   temp_file=$(mktemp)
   http_code=$(curl "https://api.steamcmd.net/v1/info/$ASA_APPID" --output "$temp_file" --silent --location --write-out "%{http_code}")
   if [ "$http_code" -ne 200 ]; then
       echo "There was a problem reaching the Steam api. Unable to check for updates!"
-      #DiscordMessage "Install" "There was a problem reaching the Steam api. Unable to check for updates!" "failure"
+      DiscordMessage "Install" "There was a problem reaching the Steam api. Unable to check for updates!" "failure"
       rm "$temp_file"
       return 2
   fi
 
   # Parse temp file for manifest id
-  LATEST_MANIFEST=$(grep -Po '"2430930".*"gid": "\d+"' <"$temp_file" | sed -r 's/.*("[0-9]+")$/\1/' | tr -d '"')
+  LATEST_MANIFEST=$(jq '.data."'"$ASA_APPID"'".depots."'"$(($ASA_APPID + 1))"'".manifests.public.gid' <"$temp_file" | sed -r 's/.*("[0-9]+")$/\1/' | tr -d '"')
   rm "$temp_file"
 
   if [ -z "$LATEST_MANIFEST" ]; then
       echo "The server response does not contain the expected BuildID. Unable to check for updates!"
-      #DiscordMessage "Install" "Steam servers response does not contain the expected BuildID. Unable to check for updates!" "failure"
+      DiscordMessage "Install" "Steam servers response does not contain the expected BuildID. Unable to check for updates!" "failure"
       return 2
   fi
 
   # Parse current manifest from steam files
-  CURRENT_MANIFEST=$(awk '/manifest/{count++} count==2 {print $2; exit}' /steamapps/appmanifest_$ASA_APPID.acf | tr -d '"')
+  CURRENT_MANIFEST=$(awk '/manifest/{count++} count==2 {print $2; exit}' /opt/arkserver/steamapps/appmanifest_$ASA_APPID.acf | tr -d '"')
   echo "Current Version: $CURRENT_MANIFEST"
 
   # Log any updates available
@@ -339,11 +340,21 @@ update_required() {
 }
 
 update() {
-    echo "Updating ARK Ascended Server"
-    
+    update_required
+    updateRequired=$?
+    if [ "$updateRequired" != 0 ]; then
+        return 0
+    fi
+    if [[ "${AUTO_UPDATE_WARN_MINUTES}" =~ ^[0-9]+$ ]]; then
+        custom_rcon "broadcast The Server will update in ${UPDATE_WARN_MINUTES} minutes"
+        DiscordMessage "Update" "Server will update in ${UPDATE_WARN_MINUTES} minutes"
+        sleep $((UPDATE_WARN_MINUTES * 60))
+    fi
+
+    DiscordMessage "Update" "Updating Server now" "warn"
     stop --saveworld
-    /opt/steamcmd/steamcmd.sh +force_install_dir /opt/arkserver +login anonymous +app_update ${ASA_APPID} +quit
-    # Remove unnecessary files (saves 6.4GB.., that will be re-downloaded next update)
+    rm "/opt/arkserver/steamapps/appmanifest_$ASA_APPID.acf"
+    /opt/steamcmd/steamcmd.sh +force_install_dir /opt/arkserver +login anonymous +app_update ${ASA_APPID} +quit # Remove unnecessary files (saves 6.4GB.., that will be re-downloaded next update)
     if [[ -n "${REDUCE_IMAGE_SIZE}" ]]; then 
         rm -rf /opt/arkserver/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb
         rm -rf /opt/arkserver/ShooterGame/Content/Movies/

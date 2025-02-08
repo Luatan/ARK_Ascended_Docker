@@ -2,7 +2,7 @@ services:
   asa_server:
     tty: true
     restart: unless-stopped
-    image: azixus/ark-ascended-docker
+    #image: azixus/ark-ascended-docker
     build:
       context: .
       args:
@@ -15,6 +15,7 @@ services:
       SERVER_MAP: TheIsland_WP
       SERVER_PORT: 7790
       SESSION_NAME: My Awesome Server
+      AUTO_UPDATE_CRON_EXPRESSION: "0 * * * *"
     volumes:
       - ./ark_data:/opt/arkserver
       - ./ark_backup:/var/backups/asa-server
@@ -30,6 +31,7 @@ services:
     entrypoint: python3 -m http.server --directory /web 80
     volumes:
       - ./web:/web
+      - steam_data_asa_server:/opt/steam
 volumes:
     steam_data_asa_server:
     shared_cluster:
