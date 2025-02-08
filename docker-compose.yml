@@ -1,5 +1,5 @@
 services:
-  asa_server:
+  server:
     tty: true
     restart: unless-stopped
     #image: azixus/ark-ascended-docker
@@ -20,17 +20,17 @@ services:
       - ./ark_data:/opt/arkserver
       - ./ark_backup:/var/backups/asa-server
       - steam_data_asa_server:/opt/steamcmd
-      - shared_cluster:/opt/shared-cluster #Enable for Cluster config
+      #- shared_cluster:/opt/shared-cluster #Enable for Cluster config
     ports:
       - "7790:7790/udp"
       #- "${SERVER_PORT}:${SERVER_PORT}/udp"
       #- "${RCON_PORT}:${RCON_PORT}/tcp"
     stop_grace_period: 45s
-  config:
-    image: python:3.9
-    entrypoint: python3 -m http.server --directory /web 80
-    volumes:
-      - ./web:/web
+  # config: # Uncomment Service if you want to use Dynamicconfig
+  #   image: python:3.9
+  #   entrypoint: python3 -m http.server --directory /web 80
+  #   volumes:
+  #     - ./web:/web
 volumes:
     steam_data_asa_server:
     shared_cluster:
