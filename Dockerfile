@@ -46,17 +46,11 @@ RUN         set -ex; \
 RUN         set -ex; \
             curl -sLOJ "$(curl -s https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | grep browser_download_url | cut -d\" -f4 | egrep .tar.gz)"; \
             tar -xzf GE-Proton*.tar.gz -C /usr/local/bin/ --strip-components=1; \
-            rm GE-Proton*.*
-
-# Proton Fix machine-id
-RUN         set -ex; \
+            rm GE-Proton*.* \
             rm -f /etc/machine-id; \
             dbus-uuidgen --ensure=/etc/machine-id; \
             rm /var/lib/dbus/machine-id; \
-            dbus-uuidgen --ensure
-
-# Install rcon
-RUN         set -ex; \
+            dbus-uuidgen --ensure; \
             cd /tmp/; \
             curl -sSL https://github.com/gorcon/rcon-cli/releases/download/v0.10.3/rcon-0.10.3-amd64_linux.tar.gz > rcon.tar.gz; \
             tar xvf rcon.tar.gz; \
@@ -76,12 +70,12 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" \
  && echo "${SUPERCRONIC_SHA1SUM}  ${SUPERCRONIC}" | sha1sum -c - \
  && chmod +x "$SUPERCRONIC" \
  && mv "$SUPERCRONIC" "/usr/local/bin/${SUPERCRONIC}" \
- && ln -s "/usr/local/bin/${SUPERCRONIC}" /usr/local/bin/supercronic
+ && ln -s "/usr/local/bin/${SUPERCRONIC}" /usr/local/bin/supercronic;
 
 # Set permissions
 RUN         set -ex; \
             chown -R arkuser:arkuser /opt/arkserver; \
-            chown -R arkuser:arkuser /opt/steamcmd
+            chown -R arkuser:arkuser /opt/steamcmd;
 
 COPY --chown=arkuser --chmod=755 ./scripts/start.sh /opt/start.sh
 COPY --chown=arkuser --chmod=755 ./scripts/manager /opt/manager
@@ -98,5 +92,6 @@ ENV AUTO_BACKUP_ENABLED=false \
 USER        arkuser
 WORKDIR     /opt/arkserver/
 
+HEALTHCHECK CMD manager health || exit 1
 #on startup enter start.sh script
 ENTRYPOINT ["/tini", "--", "/opt/start.sh"]

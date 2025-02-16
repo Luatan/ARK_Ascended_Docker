@@ -8,17 +8,34 @@ get_and_check_pid() {
     ark_pid=$(cat "$PID_FILE" 2>/dev/null)
     if [[ -z "$ark_pid" ]]; then
         echo "0"
-        return
+        return 1
     fi
 
     # Check process is still alive
     if ps -p $ark_pid > /dev/null; then
         echo "$ark_pid"
+        return 0
     else
         echo "0"
+        return 1
     fi
 }
 
+get_health() {
+    server_pid=$(pgrep GameThread)
+    steam_pid=$(pidof steamcmd)
+    if [[ "${steam_pid:-0}" != 0 ]]; then
+        echo "Updating"
+        return 0
+    fi
+    if [[ "${server_pid:-0}" != 0 ]]; then
+        echo "UP"
+        return 0
+    else
+        echo "Down"
+        return 1
+    fi
+}
 full_status_setup() {
     # Check PDB is still available
     if [[ ! -f "/opt/arkserver/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb" ]]; then 
@@ -153,14 +170,14 @@ status() {
     ark_pid=$(get_and_check_pid)
     if [[ "$ark_pid" == 0 ]]; then
         echo "Server PID not found (server offline?)"
-        return
+        return 1
     fi    
     echo -e "Server PID:     ${ark_pid}"
 
     ark_port=$(ss -tupln | grep "GameThread" | grep -oP '(?<=:)\d+')
     if [[ -z "$ark_port" ]]; then
         echo -e "Server Port:    Not Listening"
-        return
+        return 1
     fi
 
     echo -e "Server Port:    ${ark_port}"
@@ -179,9 +196,11 @@ status() {
             fi
             echo -e "Players:        ${num_players} / ?"
             echo "Server is up"
+            return 0
         fi
     else
         echo "Server is down"
+        return 0
     fi
 }
 
@@ -423,8 +442,8 @@ main() {
         "rcon")
             custom_rcon "${@:2:99}"
             ;;
-        "check-update")
-            update_required
+        "health")
+            get_health
             ;;
         "update") 
             update
