@@ -5,10 +5,6 @@ services:
     #image: azixus/ark-ascended-docker
     build:
       context: .
-      args:
-        PUID: ${PUID}
-        PGID: ${PGID}
-        TINI_VERSION: ${TINI_VERSION}
     env_file:
       - .env
     environment:

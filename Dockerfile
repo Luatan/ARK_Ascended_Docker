@@ -23,27 +23,40 @@
 
 FROM        debian:bullseye-slim
 
-# Arguments defining arkuser's uid and gid
-ARG         PUID
-ARG         PGID
+ARG PGID=1000
+ARG PUID=1000
+ARG TINI_VERSION=v0.19.0
+ARG ASA_APPID=2430930
+
+ENV ASA_APPID=$ASA_APPID \
+    LOG_FILE=/opt/arkserver/ShooterGame/Saved/Logs/ShooterGame.log \
+    PID_FILE=/opt/arkserver/.server.pid \
+    STEAM_COMPAT_CLIENT_INSTALL_PATH=/home/arkuser/.steam/steam \
+    STEAM_COMPAT_DATA_PATH=/home/arkuser/.steam/steam/steamapps/compatdata/${ASA_APPID} \
+    SERVER_SHUTDOWN_TIMEOUT=30 \
+    AUTO_BACKUP_ENABLED=false \
+    OLD_BACKUP_DAYS=7 \
+    AUTO_BACKUP_CRON_EXPRESSION="0 0 * * *" \
+    AUTO_UPDATE_ENABLED=true \
+    AUTO_UPDATE_CRON_EXPRESSION="0 * * * *" \
+    UPDATE_WARN_MINUTES=15 \
+    DISCORD_CONNECT_TIMEOUT=30 \
+    DISCORD_MAX_TIMEOUT=30 
 
 # Use users group for unraid
-RUN         groupadd -g $PGID arkuser && useradd -d /home/arkuser -u $PUID -g $PGID -G users -m arkuser
-RUN         mkdir /opt/arkserver
+RUN         groupadd -g $PGID arkuser && useradd -d /home/arkuser -u $PUID -g $PGID -G users -m arkuser; \
+            mkdir /opt/arkserver;
 
 RUN         set -ex; \
             dpkg --add-architecture i386; \
             apt update; \
-            apt install -y --no-install-recommends wget curl jq jo sudo iproute2 procps software-properties-common dbus lib32gcc-s1
+            apt install -y --no-install-recommends wget curl jq jo sudo iproute2 procps software-properties-common dbus lib32gcc-s1;
 
 # Download steamcmd
 RUN         set -ex; \
             mkdir -p /opt/steamcmd; \
             cd /opt/steamcmd; \
-            curl "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
-
-# Download Proton GE
-RUN         set -ex; \
+            curl "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - ;\
             curl -sLOJ "$(curl -s https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | grep browser_download_url | cut -d\" -f4 | egrep .tar.gz)"; \
             tar -xzf GE-Proton*.tar.gz -C /usr/local/bin/ --strip-components=1; \
             rm GE-Proton*.* \
@@ -54,12 +67,11 @@ RUN         set -ex; \
             cd /tmp/; \
             curl -sSL https://github.com/gorcon/rcon-cli/releases/download/v0.10.3/rcon-0.10.3-amd64_linux.tar.gz > rcon.tar.gz; \
             tar xvf rcon.tar.gz; \
-            mv rcon-0.10.3-amd64_linux/rcon /usr/local/bin/
+            mv rcon-0.10.3-amd64_linux/rcon /usr/local/bin/;
 
 # Install tini
-ARG         TINI_VERSION
 ADD         https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN         chmod +x /tini
+RUN         chmod +x /tini;
 
 # Latest releases available at https://github.com/aptible/supercronic/releases
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-amd64 \
@@ -80,14 +92,8 @@ RUN         set -ex; \
 COPY --chown=arkuser --chmod=755 ./scripts/start.sh /opt/start.sh
 COPY --chown=arkuser --chmod=755 ./scripts/manager /opt/manager
 
-RUN         ln -s /opt/manager/manager.sh /usr/local/bin/manager
-
-ENV AUTO_BACKUP_ENABLED=false \
-    AUTO_BACKUP_CRON_EXPRESSION="0 0 * * *" \
-    AUTO_UPDATE_ENABLED=true \
-    AUTO_UPDATE_CRON_EXPRESSION="0 * * * *" \
-    DISCORD_CONNECT_TIMEOUT=30 \
-    DISCORD_MAX_TIMEOUT=30
+RUN         ln -s /opt/manager/manager.sh /usr/local/bin/manager; \
+            rm -rf /tmp/*;
 
 USER        arkuser
 WORKDIR     /opt/arkserver/
