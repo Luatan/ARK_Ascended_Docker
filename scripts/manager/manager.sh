@@ -36,6 +36,14 @@ get_health() {
         return 1
     fi
 }
+
+custom_rcon() {
+    if ! get_health >/dev/null ; then
+        return 1
+    fi
+    echo $(${RCON_CMDLINE[@]} "${@}" 2>/dev/null)
+    return 0
+}
 full_status_setup() {
     # Check PDB is still available
     if [[ ! -f "/opt/arkserver/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb" ]]; then 
@@ -205,15 +213,12 @@ status() {
 }
 
 start() {
-    # Check server not already running
-    ark_pid=$(get_and_check_pid)
-    if [[ "$ark_pid" != 0 ]]; then
+    if get_health >/dev/null ; then
         LogInfo "Server is already running."
-        return
-    fi    
-
+        return 0
+    fi
     LogInfo "Starting server on port ${SERVER_PORT}"
-    LogInfo "STARTING SERVER" >> $LOG_FILE
+    LogAction "STARTING SERVER" >> "$LOG_FILE"
 
     # Start server in the background + nohup and save PID
     DiscordMessage "Start" "The Server is starting" "success"
@@ -224,11 +229,9 @@ start() {
 }
 
 stop() {
-    # Get server pid
-    ark_pid=$(get_and_check_pid)
-    if [[ "$ark_pid" == 0 ]]; then
-        LogError "Server PID not found (server offline?)"
-        return
+    if ! get_health >/dev/null ; then
+        LogError "Server is not running"
+        return 1
     fi
 
     if [[ $1 == "--saveworld" ]]; then
@@ -281,40 +284,30 @@ restart() {
 }
 
 saveworld() {
-    # Get server pid
-    ark_pid=$(get_and_check_pid)
-    if [[ "$ark_pid" == 0 ]]; then
-        LogError "Server PID not found (server offline?)"
-        return
-    fi    
+    if ! get_health >/dev/null ; then
+        LogError "Unable to save... Server not up"
+        return 1
+    fi
 
     LogInfo "Saving world..."
-    out=$(${RCON_CMDLINE[@]} SaveWorld 2>/dev/null)
+    out=$(custom_rcon SaveWorld)
     res=$?
     if [[ $res == 0 && "$out" == "World Saved" ]]; then
         LogSuccess "Success!"
     else
         LogError "Failed."
-    fi
-}
-
-custom_rcon() {
-    if ! get_health >/dev/null ; then
-        LogError "Server is down"
         return 1
     fi
-
-    out=$(${RCON_CMDLINE[@]} "${@}" 2>/dev/null)
-    echo "$out"
-    return 0
+    # sleep is nessecary because the server seems to write save files after the saveworld function ends.
+    sleep 5
 }
+
 
 # Returns 0 if Update Required
 # Returns 1 if Update NOT Required
 # Returns 2 if Check Failed
 update_required() {
   LogInfo "Checking for new Server updates"
-  #define local variables
   local CURRENT_MANIFEST LATEST_MANIFEST temp_file http_code updateAvailable
   #check steam for latest version
   temp_file=$(mktemp)
@@ -352,15 +345,13 @@ update_required() {
   fi
 
   if [ "$updateAvailable" == false ]; then
-    LogSuccess "The server is up to date!"
     return 1
   fi
 }
 
 update() {
-    update_required
-    updateRequired=$?
-    if [ "$updateRequired" != 0 ]; then
+    if ! update_required; then
+        LogSuccess "The server is up to date!"
         return 0
     fi
     if [[ "${AUTO_UPDATE_WARN_MINUTES}" =~ ^[0-9]+$ ]]; then
@@ -387,14 +378,12 @@ backup(){
     LogInfo "Creating backup. Backups are saved in your ./ark_backup volume."
     # saving before creating the backup
     saveworld
-    # sleep is nessecary because the server seems to write save files after the saveworld function ends and thus tar runs into errors.
-    sleep 5
     # Use backup script
     /opt/manager/manager_backup.sh
 
     res=$?
     if [[ $res == 0 ]]; then
-        LogSuccess "BACKUP CREATED" >> $LOG_FILE
+        LogSuccess "Backup Created" >> $LOG_FILE
     else
         LogError "creating backup failed"
     fi
@@ -402,7 +391,7 @@ backup(){
 
 restoreBackup(){
     backup_count=$(ls /var/backups/asa-server/ | wc -l)
-    if [[ $backup_count > 0 ]]; then
+    if [[ $backup_count -gt 0 ]]; then
         sleep 3
         # restoring the backup
         /opt/manager/manager_restore_backup.sh
@@ -412,8 +401,6 @@ restoreBackup(){
         LogError "You haven't created any backups yet."
     fi
 }
-
-
 
 # Main function
 main() {
