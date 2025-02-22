@@ -1,3 +1,16 @@
+#
+# Log Definitions
+#
+export LINE='\n'
+export RESET='\033[0m'       # Text Reset
+export WhiteText='\033[0;37m'        # White
+
+# Bold
+export RedBoldText='\033[1;31m'         # Red
+export GreenBoldText='\033[1;32m'       # Green
+export YellowBoldText='\033[1;33m'      # Yellow
+export CyanBoldText='\033[1;36m'        # Cyan
+
 LogInfo() {
   Log "$1" "$WhiteText"
 }
@@ -11,7 +24,7 @@ LogSuccess() {
   Log "$1" "$GreenBoldText"
 }
 LogAction() {
-  Log "$1" "$CyanBoldText" "****" "****"
+  Log "$1" "$CyanBoldText" "<------- " " ------->"
 }
 Log() {
   local message="$1"

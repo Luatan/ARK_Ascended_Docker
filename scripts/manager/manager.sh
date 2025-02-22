@@ -39,7 +39,7 @@ get_health() {
 full_status_setup() {
     # Check PDB is still available
     if [[ ! -f "/opt/arkserver/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb" ]]; then 
-        echo "/opt/arkserver/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb is needed to setup full status."
+        LogError "/opt/arkserver/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb is needed to setup full status."
         return 1
     fi
 
@@ -92,7 +92,7 @@ full_status_display() {
 
     # Check there was no error
     if [[ "$res" == *"errorCode"* ]]; then
-        echo "Failed to query EOS... Please run command again."
+        LogError "Failed to query EOS... Please run command again."
         full_status_setup
         return
     fi
@@ -101,7 +101,7 @@ full_status_display() {
     serv=$(echo "$res" | jq -r ".sessions[] | select( .attributes.ADDRESSBOUND_s | contains(\":${SERVER_PORT}\"))")
     
     if [[ -z "$serv" ]]; then
-        echo "Server is down"
+        LogError "Server is down"
         return
     fi
 
@@ -169,7 +169,7 @@ status() {
     # Get server PID
     ark_pid=$(get_and_check_pid)
     if [[ "$ark_pid" == 0 ]]; then
-        echo "Server PID not found (server offline?)"
+        LogError "Server PID not found (server offline?)"
         return 1
     fi    
     echo -e "Server PID:     ${ark_pid}"
@@ -195,11 +195,11 @@ status() {
                 num_players=$(echo "$out" | wc -l)
             fi
             echo -e "Players:        ${num_players} / ?"
-            echo "Server is up"
+            LogSuccess "Server is up"
             return 0
         fi
     else
-        echo "Server is down"
+        LogError "Server is down"
         return 0
     fi
 }
@@ -208,12 +208,12 @@ start() {
     # Check server not already running
     ark_pid=$(get_and_check_pid)
     if [[ "$ark_pid" != 0 ]]; then
-        echo "Server is already running."
+        LogInfo "Server is already running."
         return
     fi    
 
     LogInfo "Starting server on port ${SERVER_PORT}"
-    echo "-------- STARTING SERVER --------" >> $LOG_FILE
+    LogInfo "STARTING SERVER" >> $LOG_FILE
 
     # Start server in the background + nohup and save PID
     DiscordMessage "Start" "The Server is starting" "success"
@@ -227,7 +227,7 @@ stop() {
     # Get server pid
     ark_pid=$(get_and_check_pid)
     if [[ "$ark_pid" == 0 ]]; then
-        echo "Server PID not found (server offline?)"
+        LogError "Server PID not found (server offline?)"
         return
     fi
 
@@ -235,20 +235,20 @@ stop() {
         saveworld
     fi
     DiscordMessage "Stopping" "Server will gracefully shutdown" "in-progress"
-    echo "-------- STOPPING SERVER --------" >> "$LOG_FILE"
+    LogAction "STOPPING SERVER" >> "$LOG_FILE"
 
     # Check number of players
     out=$(${RCON_CMDLINE[@]} DoExit 2>/dev/null)
     res=$?
     force=false
     if [[ $res == 0  && "$out" == "Exiting..." ]]; then
-        echo "Waiting ${SERVER_SHUTDOWN_TIMEOUT}s for the server to stop"
+        LogInfo "Waiting ${SERVER_SHUTDOWN_TIMEOUT}s for the server to stop"
         timeout $SERVER_SHUTDOWN_TIMEOUT tail --pid=$ark_pid -f /dev/null
         res=$?
 
         # Timeout occurred
         if [[ "$res" == 124 ]]; then
-            echo "Server still running after $SERVER_SHUTDOWN_TIMEOUT seconds"
+            LogWarn "Server still running after $SERVER_SHUTDOWN_TIMEOUT seconds"
             force=true
         fi
     else
@@ -257,7 +257,7 @@ stop() {
 
     if [[ "$force" == true ]]; then
         DiscordMessage "Stopping" "Forcing the Server to shutdown" "faillure"
-        echo "Forcing server shutdown"
+        LogWarn "Forcing server shutdown"
         kill -INT $ark_pid
 
         timeout $SERVER_SHUTDOWN_TIMEOUT tail --pid=$ark_pid -f /dev/null
@@ -270,11 +270,12 @@ stop() {
 
     echo "" > $PID_FILE
     DiscordMessage "Stopping" "Server has been stopped" "faillure"
-    echo "-------- SERVER STOPPED --------" >> "$LOG_FILE"
+    LogAction "SERVER STOPPED" >> "$LOG_FILE"
 }
 
 restart() {
     DiscordMessage "Restart" "Restarting the Server" "in-progress"
+    LogAction "RESTARTING SERVER"
     stop "$1"
     start
 }
@@ -283,44 +284,43 @@ saveworld() {
     # Get server pid
     ark_pid=$(get_and_check_pid)
     if [[ "$ark_pid" == 0 ]]; then
-        echo "Server PID not found (server offline?)"
+        LogError "Server PID not found (server offline?)"
         return
     fi    
 
-    echo "Saving world..."
+    LogInfo "Saving world..."
     out=$(${RCON_CMDLINE[@]} SaveWorld 2>/dev/null)
     res=$?
     if [[ $res == 0 && "$out" == "World Saved" ]]; then
-        echo "Success!"
+        LogSuccess "Success!"
     else
-        echo "Failed."
+        LogError "Failed."
     fi
 }
 
 custom_rcon() {
-    # Get server pid
-    ark_pid=$(get_and_check_pid)
-    if [[ "$ark_pid" == 0 ]]; then
-        echo "Server PID not found (server offline?)"
-        return
-    fi    
+    if ! get_health >/dev/null ; then
+        LogError "Server is down"
+        return 1
+    fi
 
     out=$(${RCON_CMDLINE[@]} "${@}" 2>/dev/null)
     echo "$out"
+    return 0
 }
 
 # Returns 0 if Update Required
 # Returns 1 if Update NOT Required
 # Returns 2 if Check Failed
 update_required() {
-  echo "Checking for new Server updates"
+  LogInfo "Checking for new Server updates"
   #define local variables
   local CURRENT_MANIFEST LATEST_MANIFEST temp_file http_code updateAvailable
   #check steam for latest version
   temp_file=$(mktemp)
   http_code=$(curl "https://api.steamcmd.net/v1/info/$ASA_APPID" --output "$temp_file" --silent --location --write-out "%{http_code}")
   if [ "$http_code" -ne 200 ]; then
-      echo "There was a problem reaching the Steam api. Unable to check for updates!"
+      LogError "There was a problem reaching the Steam api. Unable to check for updates!"
       DiscordMessage "Install" "There was a problem reaching the Steam api. Unable to check for updates!" "failure"
       rm "$temp_file"
       return 2
@@ -331,29 +331,28 @@ update_required() {
   rm "$temp_file"
 
   if [ -z "$LATEST_MANIFEST" ]; then
-      echo "The server response does not contain the expected BuildID. Unable to check for updates!"
+      LogError "The server response does not contain the expected BuildID. Unable to check for updates!"
       DiscordMessage "Install" "Steam servers response does not contain the expected BuildID. Unable to check for updates!" "failure"
       return 2
   fi
 
   # Parse current manifest from steam files
   CURRENT_MANIFEST=$(awk '/manifest/{count++} count==2 {print $2; exit}' /opt/arkserver/steamapps/appmanifest_$ASA_APPID.acf | tr -d '"')
-  echo "Current Version: $CURRENT_MANIFEST"
 
   # Log any updates available
   local updateAvailable=false
   if [ "$CURRENT_MANIFEST" != "$LATEST_MANIFEST" ]; then
-    echo "An Update Is Available. Latest Version: $LATEST_MANIFEST."
+    LogWarn "An Update Is Available: $CURRENT_MANIFEST -> $LATEST_MANIFEST."
     updateAvailable=true
   fi
 
   if [ -n "${TARGET_MANIFEST_ID}" ] && [ "$CURRENT_MANIFEST" != "${TARGET_MANIFEST_ID}" ]; then
-    echo "Game not at target version. Target Version: ${TARGET_MANIFEST_ID}"
+    LogWarn "Game not at target version. Target Version: ${TARGET_MANIFEST_ID}"
     return 0
   fi
 
   if [ "$updateAvailable" == false ]; then
-    echo "The server is up to date!"
+    LogSuccess "The server is up to date!"
     return 1
   fi
 }
@@ -371,6 +370,7 @@ update() {
     fi
 
     DiscordMessage "Update" "Updating Server now" "warn"
+    LogAction "UPDATING SERVER"
     stop --saveworld
     rm "/opt/arkserver/steamapps/appmanifest_$ASA_APPID.acf"
     /opt/steamcmd/steamcmd.sh +force_install_dir /opt/arkserver +login anonymous +app_update ${ASA_APPID} +quit # Remove unnecessary files (saves 6.4GB.., that will be re-downloaded next update)
@@ -379,12 +379,12 @@ update() {
         rm -rf /opt/arkserver/ShooterGame/Content/Movies/
     fi
 
-    echo "Update completed"
+    LogSuccess "Update completed"
     start
 }
 
 backup(){
-    echo "Creating backup. Backups are saved in your ./ark_backup volume."
+    LogInfo "Creating backup. Backups are saved in your ./ark_backup volume."
     # saving before creating the backup
     saveworld
     # sleep is nessecary because the server seems to write save files after the saveworld function ends and thus tar runs into errors.
@@ -394,25 +394,22 @@ backup(){
 
     res=$?
     if [[ $res == 0 ]]; then
-        echo "BACKUP CREATED" >> $LOG_FILE
+        LogSuccess "BACKUP CREATED" >> $LOG_FILE
     else
-        echo "creating backup failed"
+        LogError "creating backup failed"
     fi
 }
 
 restoreBackup(){
     backup_count=$(ls /var/backups/asa-server/ | wc -l)
     if [[ $backup_count > 0 ]]; then
-        echo "Stopping the server."
-        stop
         sleep 3
         # restoring the backup
         /opt/manager/manager_restore_backup.sh
-        
         sleep 2
         start
     else
-        echo "You haven't created any backups yet."
+        LogError "You haven't created any backups yet."
     fi
 }
 
@@ -455,7 +452,7 @@ main() {
             restoreBackup
             ;;
         *)
-            echo "Invalid action. Supported actions: status, start, stop, restart, saveworld, rcon, update, backup, restore."
+            LogError "Invalid action. Supported actions: status, start, stop, restart, saveworld, rcon, update, backup, restore."
             exit 1
             ;;
     esac
