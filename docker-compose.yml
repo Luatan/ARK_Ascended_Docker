@@ -2,24 +2,23 @@ services:
   server:
     tty: true
     restart: unless-stopped
-    #image: azixus/ark-ascended-docker
     build:
       context: .
+      args:
+        - PGID
+        - PUID
     env_file:
       - .env
     environment:
-      SERVER_MAP: TheIsland_WP
-      SERVER_PORT: 7790
-      SESSION_NAME: My Awesome Server
-      AUTO_UPDATE_CRON_EXPRESSION: "0 * * * *"
+      SERVER_MAP: TheIsland_WP # Change Map
+      SESSION_NAME: My Awesome Server # Change Server Name
+      AUTO_UPDATE_CRON_EXPRESSION: "0 * * * *" 
     volumes:
       - ./ark_data:/opt/arkserver
       - ./ark_backup:/var/backups/asa-server
-      - steam_data_asa_server:/opt/steamcmd
-      #- shared_cluster:/opt/shared-cluster #Enable for Cluster config
+      - steam_data_server:/opt/steamcmd
     ports:
-      - "7790:7790/udp"
-      #- "${SERVER_PORT}:${SERVER_PORT}/udp"
+      - "${SERVER_PORT}:${SERVER_PORT}/udp"
       #- "${RCON_PORT}:${RCON_PORT}/tcp"
     stop_grace_period: 45s
   # config: # Uncomment Service if you want to use Dynamicconfig
@@ -28,5 +27,4 @@ services:
   #   volumes:
   #     - ./web:/web
 volumes:
-    steam_data_asa_server:
-    shared_cluster:
+    steam_data_server:

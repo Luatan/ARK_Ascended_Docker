@@ -1,7 +1,6 @@
 .idea
 *.iml
 ark_*
-!ark_data/ShooterGame/Saved/Config/WindowsServer/Game.ini
-!ark_data/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini
+!ark_cluster/.gitkeep
 !ark_backup/.gitkeep
 .env

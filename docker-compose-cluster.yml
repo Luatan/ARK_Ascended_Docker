@@ -1,0 +1,50 @@
+services:
+  the-island:
+    tty: true
+    restart: unless-stopped
+    build:
+      context: .
+      args:
+        - PGID
+        - PUID
+    env_file:
+      - .env
+    environment:
+      SERVER_MAP: TheIsland_WP
+      SESSION_NAME: My Awesome Server with The Island # Set the Server Name
+    volumes:
+      - ./ark_data_the-island:/opt/arkserver
+      - ./ark_backup/the-island:/var/backups/asa-server
+      - steam_data_server1:/opt/steamcmd
+      - ./ark_cluster:/opt/shared-cluster
+    ports:
+      - "7790:${SERVER_PORT}/udp"
+      #- "${RCON_PORT}:${RCON_PORT}/tcp"
+    stop_grace_period: 45s
+  extinction:
+    tty: true
+    restart: unless-stopped
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      SERVER_MAP: Extinction_WP
+      SESSION_NAME: My Awesome Server with Extinction # Set the Server Name
+    volumes:
+      - ./ark_data_extinction:/opt/arkserver
+      - ./ark_backup/extinction:/var/backups/asa-server
+      - steam_data_server2:/opt/steamcmd
+      - ./ark_cluster:/opt/shared-cluster
+    ports:
+      - "7791:${SERVER_PORT}/udp"
+      #- "${RCON_PORT}:${RCON_PORT}/tcp"
+    stop_grace_period: 45s
+  # config: # Uncomment Service if you want to use Dynamicconfig
+  #   image: python:3.9
+  #   entrypoint: python3 -m http.server --directory /web 80
+  #   volumes:
+  #     - ./web:/web
+volumes:
+    steam_data_server1:
+    steam_data_server2:
