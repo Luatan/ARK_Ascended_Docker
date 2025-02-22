@@ -76,27 +76,23 @@ To increase the available server memory, in [docker-compose.yml](./docker-compos
 
 ### Running multiple instances (cluster)
 If you want to run a cluster with two or more containers running at the same time, you will have to be aware of some things you have to change: 
-- Clone this repository into two different directories like `git clone https://github.com/azixus/ARK_Ascended_Docker.git folder1` and `git clone https://github.com/azixus/ARK_Ascended_Docker.git folder2`
 - First setup all instances according to the [usage](https://github.com/azixus/ARK_Ascended_Docker/edit/cluster/README.md#usage) and [configuration](https://github.com/azixus/ARK_Ascended_Docker/edit/cluster/README.md#configuration) steps.
-- Create a folder in a directory of your choosing, e.g., `mkdir -p /opt/clusters`. This folder will be used by both instances to transfer player data.
-- Edit the [docker-compose.yml](./docker-compose.yml) file in every instance by adding a volume for the newly created folder. The updated volume section should look as follows (focus on `/opt/clusters....`:
+- There is a template compose file for a cluster configuration see [docker-compose-cluster.yml](./docker-compose-cluster.yml). 
+- Create all ark_* folders in your clone directory with ``mkdir`` and make sure the permissions are correct.
+- Edit the shared Configuration in the [.env](./.env) file
+- Every setting which is Container specific can be added to the Docker Compose file int the environement tag for example:
   ```yaml
-  volumes:
-    - ./ark_data:/opt/arkserver
-    - ./ark_backup:/var/backups/asa-server
-    - /opt/clusters:/opt/shared-cluster
-    - steam_data:/opt/steamcmd
+  environment:
+      SERVER_MAP: TheIsland_WP
+      SESSION_NAME: My Awesome Server with The Island
   ```
-- Edit the [.env](./.env) file in every instance accordingly
-  - Set the **port** to a different one for each instance, eg 7777, 7778, 7779 etc.
-  - Edit `SERVER_MAP` to the map you want the server to run eg (`TheIsland_WP`, `ScorchedEarth_WP` etc)
-  - Add line `COMPOSE_PROJECT_NAME=aprojectname` somewhere in the [.env](./.env) file with a different name for each instance. Please only use small letters, underscores and numbers.
+  - Set the **port** to a different one for each instance, eg 7777, 7778, 7779 etc. in the docker compose file if not already correct.
   - Add `-clusterID=[yourclusterid]` to the `ARK_EXTRA_DASH_OPTS` with the same `clusterID` for every instance you want to cluster. The `clusterID` should be a random combination of letters and numbers, don't use special characters. The line should somewhat look like this:
     ```
-    ARK_EXTRA_DASH_OPTS=-ForceAllowCaveFlyers -ForceRespawnDinos -AllowRaidDinoFeeding=true -ActiveEvent=Summer -clusterID=thisisarandomid -ClusterDirOverride="/opt/shared-cluster"
+    ARK_EXTRA_DASH_OPTS=-ForceAllowCaveFlyers -ForceRespawnDinos -AllowRaidDinoFeeding=true -ActiveEvent=Summer -clusterID=changeThisId -ClusterDirOverride="/opt/shared-cluster"
     ```
 - Be sure that you have at least about **28-32GB** of memory available, especially if you use any mods
-- Start every instance with `docker compose up -d` and enjoy your clustered ASA server :)
+- Either replace docker-compose.yml with the file docker-compose-cluster.yml and start the cluster with ```docker compose up``` or use ```docker compose -f docker-compose-cluster.yml up```
 
 ### Manager commands
 The manager script supports several commands that we highlight below. 
