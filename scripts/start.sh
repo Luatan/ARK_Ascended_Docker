@@ -20,6 +20,11 @@ fi
 LogAction "GENERATING CRONTAB"
 CRONTAB_FILE="/home/arkuser/crontab"
 truncate -s 0 $CRONTAB_FILE
+
+LogInfo "Create Health Check Job"
+echo "$HEALTHCHECK_CRON_EXPRESSION bash /opt/healthcheck.sh" >> "$CRONTAB_FILE"
+supercronic -quiet -test "$CRONTAB_FILE" || exit
+
 if [ "${BACKUP_ENABLED,,}" = true ]; then
     LogInfo "BACKUP_ENABLED=${BACKUP_ENABLED,,}"
     LogInfo "Adding cronjob for auto backups"
@@ -39,6 +44,7 @@ if [ -s "$CRONTAB_FILE" ]; then
 else
     LogInfo "No Cronjobs found"
 fi
+
 #Create file for showing server logs
 mkdir -p "${LOG_FILE%/*}" && echo "" > "${LOG_FILE}"
 

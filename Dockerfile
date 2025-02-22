@@ -34,6 +34,8 @@ ENV ASA_APPID=$ASA_APPID \
     STEAM_COMPAT_CLIENT_INSTALL_PATH=/home/arkuser/.steam/steam \
     STEAM_COMPAT_DATA_PATH=/home/arkuser/.steam/steam/steamapps/compatdata/${ASA_APPID} \
     SERVER_SHUTDOWN_TIMEOUT=30 \
+    HEALTHCHECK_CRON_EXPRESSION="*/5 * * * *" \
+    HEALTHCHECK_SELFHEALING_ENABLED=false \
     AUTO_BACKUP_ENABLED=false \
     OLD_BACKUP_DAYS=7 \
     AUTO_BACKUP_CRON_EXPRESSION="0 0 * * *" \
@@ -91,6 +93,7 @@ RUN         set -ex; \
             chown -R arkuser:arkuser /opt/steamcmd;
 
 COPY --chown=arkuser --chmod=755 ./scripts/start.sh /opt/start.sh
+COPY --chown=arkuser --chmod=755 ./scripts/healthcheck.sh /opt/healthcheck.sh
 COPY --chown=arkuser --chmod=755 ./scripts/manager /opt/manager
 
 RUN         ln -s /opt/manager/manager.sh /usr/local/bin/manager; \
