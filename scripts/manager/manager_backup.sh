@@ -1,26 +1,37 @@
 #!/bin/bash
 set -e
+source "/opt/manager/helper.sh"
+
+sanitize() {
+CLEAN=${1//_/}
+CLEAN=${CLEAN// /_}
+CLEAN=${CLEAN//[^a-zA-Z0-9_]/}
+CLEAN=$(echo -n "$CLEAN" | tr '[:upper:]' '[:lower:]')
+echo "$CLEAN"
+return 0
+}
 # create backup folder if it not already exists
 path="/var/backups/asa-server"
-copyPath="/opt/arkserver/tmp/backup"
+tmp_path="/opt/arkserver/tmp/backup"
 
 mkdir -p $path
-mkdir -p $copyPath
+mkdir -p $tmp_path
 
-archive_name=$(date +"%Y-%m-%d_%H-%M-%S")
+archive_name="$(sanitize "$SESSION_NAME")_$(date +"%Y-%m-%d_%H-%M")"
 
 # copy live path to another folder so tar doesnt get any write on read fails
 echo "copying save folder"
-cp -r -R /opt/arkserver/ShooterGame/Saved $copyPath
+cp -r -R /opt/arkserver/ShooterGame/Saved "$tmp_path"
 
 # tar.gz from the copy path
 echo "creating archive"
-tar -cvzf $path/backup_${archive_name}.tar.gz -C $copyPath Saved
+tar -czf "$path/${archive_name}.tar.gz" -C "$tmp_path" Saved
 
-rm -R $copyPath/*
-# count and output existing backups
+rm -R "$tmp_path"
 
-count=$(ls $path | wc -l)
-
-echo "Number of backups in path: ${count}"
-echo "Size of Backup folder: $(du -hs $path)"
+if [[ "${OLD_BACKUP_DAYS}" =~ ^[0-9]+$ ]]; then
+    LogAction "Removing old Backups"
+    LogInfo "Deleting Backups older than ${OLD_BACKUP_DAYS} days!"
+    find "$path" -mindepth 1 -maxdepth 1 -mtime "+${OLD_BACKUP_DAYS}" -type f -name '*.tar.gz' -print -delete
+    exit 0
+fi
