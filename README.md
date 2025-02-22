@@ -20,7 +20,11 @@ $ cd ARK_Ascended_Docker
 $ sudo chown -R 1000:1000 ./ark_*/
 ```
 
-Before starting the container, edit the [.env](./.env) file to customize the starting parameters of the server. You may also edit [Game.ini](./ark_data/ShooterGame/Saved/Config/WindowsServer/Game.ini) and [GameUserSettings.ini](./ark_data/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini) for additional settings. Once this is done, start the container as follow:
+Before starting the container, copy or rename the [.env.sample](./.env.sample) to .env and edit it to customize the starting parameters of the server. 
+```bash
+$ cp .env.sample .env
+```
+You may also edit [Game.ini](./ark_data/ShooterGame/Saved/Config/WindowsServer/Game.ini) and [GameUserSettings.ini](./ark_data/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini) for additional settings. Once this is done, start the container as follow:
 ```bash
 $ docker compose up -d
 ```
